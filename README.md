@@ -1,3 +1,10 @@
+<div align="center">
+
+[![npm](https://img.shields.io/npm/v/@construct-computer/app-sdk)](https://www.npmjs.com/package/@construct-computer/app-sdk)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+</div>
+
 # @construct-computer/app-sdk
 
 SDK for building [Construct](https://construct.computer) apps — MCP server helper, TypeScript types, and manifest validation.
@@ -168,3 +175,12 @@ curl -X POST http://localhost:8787/mcp \
    ```
 4. Open a PR — CI validates automatically
 5. Once merged, your app appears in the Construct App Store
+
+## Links
+
+- [Construct Platform](https://construct.computer)
+- [App Store](https://registry.construct.computer)
+- [Publishing Guide](https://registry.construct.computer/publish)
+- [Sample App (DevTools)](https://github.com/construct-computer/construct-app-sample)
+- [MercadoLibre App](https://github.com/construct-computer/construct-app-mercadolibre)
+- [Scaffold a new app](https://www.npmjs.com/package/@construct-computer/create-construct-app)
