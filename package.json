@@ -1,0 +1,39 @@
+{
+  "name": "@anthropic-ai/construct-app-sdk",
+  "version": "0.1.0",
+  "description": "SDK for building Construct apps — MCP server helper, TypeScript types, and dev tools",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./construct-global": {
+      "types": "./src/construct-global.d.ts"
+    },
+    "./schemas/manifest.schema.json": "./schemas/manifest.schema.json"
+  },
+  "files": [
+    "dist",
+    "schemas",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "construct",
+    "mcp",
+    "cloudflare-workers",
+    "app-sdk"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241205.0",
+    "typescript": "^5.7.0"
+  }
+}

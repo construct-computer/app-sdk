@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://registry.construct.computer/schemas/manifest.json",
+  "title": "Construct App Manifest",
+  "description": "Manifest file for Construct apps. Place at the root of your app repository as manifest.json.",
+  "type": "object",
+  "required": ["name", "description"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema URL for IDE validation."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 50,
+      "description": "Display name shown in the App Store and Launchpad."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Short description (1-2 sentences)."
+    },
+    "author": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Author or organization name."
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Author website or profile URL."
+        }
+      }
+    },
+    "icon": {
+      "type": "string",
+      "description": "Relative path to icon file (256x256 PNG or SVG recommended).",
+      "default": "icon.png"
+    },
+    "categories": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "productivity",
+          "developer-tools",
+          "communication",
+          "finance",
+          "media",
+          "ai-tools",
+          "data",
+          "utilities",
+          "integrations",
+          "shopping",
+          "games"
+        ]
+      },
+      "description": "App categories for store listing."
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 30
+      },
+      "maxItems": 10,
+      "description": "Searchable tags for discovery."
+    },
+    "ui": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "UI configuration. Omit entirely if the app has no visual interface.",
+      "properties": {
+        "entry": {
+          "type": "string",
+          "default": "ui/index.html",
+          "description": "Entry point relative to repo root."
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 200,
+          "maximum": 2000,
+          "default": 800,
+          "description": "Default window width in pixels."
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 200,
+          "maximum": 2000,
+          "default": 600,
+          "description": "Default window height in pixels."
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Authentication configuration.",
+      "properties": {
+        "oauth2": {
+          "type": "object",
+          "required": ["authorization_url", "token_url"],
+          "additionalProperties": false,
+          "properties": {
+            "authorization_url": {
+              "type": "string",
+              "format": "uri",
+              "description": "OAuth authorization endpoint."
+            },
+            "token_url": {
+              "type": "string",
+              "format": "uri",
+              "description": "OAuth token exchange endpoint."
+            },
+            "scopes": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Required OAuth scopes."
+            }
+          }
+        }
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Declared permissions (shown to user during install).",
+      "properties": {
+        "network": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "External domains this app connects to."
+        },
+        "storage": {
+          "type": "string",
+          "description": "Maximum storage needed (e.g., '1MB')."
+        }
+      }
+    }
+  }
+}
