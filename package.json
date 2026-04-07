@@ -1,5 +1,5 @@
 {
-  "name": "@anthropic-ai/construct-app-sdk",
+  "name": "@construct-computer/app-sdk",
   "version": "0.1.0",
   "description": "SDK for building Construct apps — MCP server helper, TypeScript types, and dev tools",
   "type": "module",

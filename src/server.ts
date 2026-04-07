@@ -6,7 +6,7 @@
  *
  * @example
  * ```ts
- * import { ConstructApp } from '@anthropic-ai/construct-app-sdk';
+ * import { ConstructApp } from '@construct-computer/app-sdk';
  *
  * const app = new ConstructApp({ name: 'my-app', version: '1.0.0' });
  *
@@ -297,7 +297,7 @@ export class ConstructApp {
  *
  * @example
  * ```ts
- * import { createApp } from '@anthropic-ai/construct-app-sdk';
+ * import { createApp } from '@construct-computer/app-sdk';
  * const app = createApp({ name: 'my-app', version: '1.0.0' });
  * ```
  */

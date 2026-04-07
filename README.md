@@ -1,17 +1,17 @@
-# @anthropic-ai/construct-app-sdk
+# @construct-computer/app-sdk
 
 SDK for building [Construct](https://construct.computer) apps — MCP server helper, TypeScript types, and manifest validation.
 
 ## Quick Start
 
 ```bash
-npm install @anthropic-ai/construct-app-sdk
+npm install @construct-computer/app-sdk
 ```
 
 ### Server (server.ts)
 
 ```typescript
-import { ConstructApp } from '@anthropic-ai/construct-app-sdk';
+import { ConstructApp } from '@construct-computer/app-sdk';
 
 const app = new ConstructApp({ name: 'my-app', version: '1.0.0' });
 
@@ -106,7 +106,7 @@ interface RequestContext {
 Throws if the user hasn't connected their account. Use in tools that need OAuth:
 
 ```typescript
-import { requireAuth } from '@anthropic-ai/construct-app-sdk';
+import { requireAuth } from '@construct-computer/app-sdk';
 
 app.tool('my_private_tool', {
   description: 'Needs auth',
