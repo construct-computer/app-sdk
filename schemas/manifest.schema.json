@@ -143,6 +143,25 @@
           "description": "Maximum storage needed (e.g., '1MB')."
         }
       }
+    },
+    "tools": {
+      "type": "array",
+      "description": "Pre-declared tool list for documentation. Auto-discovered from the MCP server on deploy if omitted.",
+      "items": {
+        "type": "object",
+        "required": ["name", "description"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Tool name (kebab-case)."
+          },
+          "description": {
+            "type": "string",
+            "description": "What the tool does. Shown in the store listing."
+          }
+        }
+      }
     }
   }
 }

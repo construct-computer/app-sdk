@@ -57,6 +57,14 @@ export interface AppManifest {
     /** Max storage needed (e.g., "1MB"). */
     storage?: string;
   };
+
+  /** Pre-declared tool list for documentation. Auto-discovered from the MCP server on deploy if omitted. */
+  tools?: Array<{
+    /** Tool name (kebab-case). */
+    name: string;
+    /** What the tool does. Shown in the store listing. */
+    description: string;
+  }>;
 }
 
 /** Valid app category IDs. */
