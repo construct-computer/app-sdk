@@ -13,13 +13,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
 
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
 
-      - run: npm run build
+      - run: pnpm run build
 
+      # Keep `npm publish` so OIDC trusted publishing (id-token: write) works
+      # as it did on 0.2.2; pnpm publish doesn't support OIDC provenance yet.
       - run: npm publish --access public
