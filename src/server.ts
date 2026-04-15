@@ -42,12 +42,17 @@ export interface RequestContext {
   userId?: string;
 
   /**
-   * OAuth credentials from the `x-construct-auth` header.
-   * Only present when the user has connected their account.
+   * Credentials from the `x-construct-auth` header.
+   * Shape depends on the auth scheme configured in manifest.json:
+   *   - `oauth2`:  `{ type, access_token, refresh_token?, expires_at? }`
+   *   - `api_key` | `bearer` | `basic`: `{ type, ...fields }`
+   *     (field names come from `auth.schemes[].fields[].name` in the manifest)
    */
   auth?: {
-    access_token: string;
-    user_id: string;
+    type: 'oauth2' | 'api_key' | 'bearer' | 'basic';
+    access_token?: string;
+    refresh_token?: string;
+    expires_at?: number;
     [key: string]: unknown;
   };
 
@@ -56,6 +61,9 @@ export interface RequestContext {
 
   /** The raw incoming request. */
   request: Request;
+
+  /** Base64-encoded JSON of the app's environment variables from `x-construct-env`. */
+  env: Record<string, string>;
 }
 
 /** JSON Schema definition for a tool parameter. */
@@ -102,6 +110,13 @@ interface JsonRpcRequest {
 
 // ── Implementation ───────────────────────────────────────────────────────────
 
+const CORS_HEADERS: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Access-Control-Allow-Headers':
+    'Content-Type, x-construct-user, x-construct-auth, x-construct-env',
+};
+
 export class ConstructApp {
   readonly name: string;
   readonly version: string;
@@ -138,34 +153,40 @@ export class ConstructApp {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.pathname === '/mcp' && request.method === 'POST') {
-      return this.handleMcp(request);
-    }
-
-    if (url.pathname === '/health') {
-      return new Response('ok');
-    }
-
     // CORS preflight
     if (request.method === 'OPTIONS') {
-      return new Response(null, {
-        status: 204,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, x-construct-user, x-construct-auth',
-        },
-      });
+      return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
 
-    return new Response('Not found', { status: 404 });
+    let response: Response;
+    if (url.pathname === '/mcp' && request.method === 'POST') {
+      response = await this.handleMcp(request);
+    } else if (url.pathname === '/health') {
+      response = new Response('ok');
+    } else {
+      response = new Response('Not found', { status: 404 });
+    }
+
+    // Apply CORS headers to every response so the dev-mode connect check
+    // and browser-originated requests can read /health and /mcp.
+    const headers = new Headers(response.headers);
+    for (const [k, v] of Object.entries(CORS_HEADERS)) headers.set(k, v);
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
   /** Build per-request context from headers. */
   private extractContext(request: Request): RequestContext {
-    const ctx: RequestContext = { isAuthenticated: false, request };
+    const ctx: RequestContext = { 
+      isAuthenticated: false, 
+      request, 
+      env: {} 
+    };
 
     const userId = request.headers.get('x-construct-user');
     if (userId) ctx.userId = userId;
@@ -175,9 +196,22 @@ export class ConstructApp {
       try {
         const auth = JSON.parse(authHeader);
         ctx.auth = auth;
-        ctx.isAuthenticated = !!auth.access_token;
+        // Authenticated if the platform delivered any credential payload.
+        // For oauth2: access_token is required. For api_key/bearer/basic:
+        // the platform guarantees at least one credential field when the
+        // user has connected, so truthy `auth` is sufficient.
+        ctx.isAuthenticated = !!auth && (auth.type !== 'oauth2' || !!auth.access_token);
       } catch {
         /* invalid auth header — leave isAuthenticated false */
+      }
+    }
+
+    const envHeader = request.headers.get('x-construct-env');
+    if (envHeader) {
+      try {
+        ctx.env = JSON.parse(atob(envHeader));
+      } catch {
+        /* invalid env header — leave env empty */
       }
     }
 
@@ -304,8 +338,6 @@ export class ConstructApp {
 export function createApp(options: ConstructAppOptions): ConstructApp {
   return new ConstructApp(options);
 }
-
-// ── Auth helpers ─────────────────────────────────────────────────────────────
 
 /**
  * Throw if the request is not authenticated.

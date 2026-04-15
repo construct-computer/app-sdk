@@ -1,6 +1,6 @@
 {
   "name": "@construct-computer/app-sdk",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "SDK for building Construct apps — MCP server helper, TypeScript types, and dev tools",
   "type": "module",
   "main": "dist/index.js",
@@ -38,6 +38,6 @@
   "license": "MIT",
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241205.0",
-    "typescript": "^5.7.0"
+    "typescript": "^6.0.2"
   }
 }
