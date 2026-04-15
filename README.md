@@ -57,7 +57,7 @@ Add `$schema` for IDE validation:
 
 ```json
 {
-  "$schema": "https://registry.construct.computer/schemas/manifest.json",
+  "$schema": "https://raw.githubusercontent.com/construct-computer/app-sdk/main/schemas/manifest.schema.json",
   "name": "My App",
   "description": "What it does in one sentence.",
   "author": { "name": "Your Name" },
