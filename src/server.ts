@@ -149,8 +149,15 @@ export class ConstructApp {
   /**
    * Cloudflare Worker `fetch` handler. Use as `export default app;`
    * (the runtime calls `.fetch` on the default export).
+   *
+   * Automatically handles:
+   * - `/mcp` — MCP JSON-RPC endpoint
+   * - `/health` — health check
+   * - `/ui/*` path rewriting to `/*` (so dev matches published URL structure)
+   * - Static asset serving via the Cloudflare `ASSETS` binding (if present)
+   * - CORS headers on every response (required for Construct desktop dev mode)
    */
-  async fetch(request: Request): Promise<Response> {
+  async fetch(request: Request, env?: Record<string, unknown>): Promise<Response> {
     const url = new URL(request.url);
 
     // CORS preflight
@@ -163,6 +170,17 @@ export class ConstructApp {
       response = await this.handleMcp(request);
     } else if (url.pathname === '/health') {
       response = new Response('ok');
+    } else if (env?.ASSETS) {
+      // Serve static UI assets via the Cloudflare ASSETS binding
+      const assets = env.ASSETS as { fetch: typeof fetch };
+      // Rewrite /ui/* → /* so dev matches the published URL structure
+      if (url.pathname.startsWith('/ui/') || url.pathname === '/ui') {
+        const rewritten = new URL(request.url);
+        rewritten.pathname = url.pathname === '/ui' ? '/' : url.pathname.slice(3);
+        response = await assets.fetch(new Request(rewritten, request));
+      } else {
+        response = await assets.fetch(request);
+      }
     } else {
       response = new Response('Not found', { status: 404 });
     }
@@ -178,70 +196,14 @@ export class ConstructApp {
     });
   }
 
-  // ── Asset-serving wrapper ────────────────────────────────────────────────
+  // ── Deprecated ──────────────────────────────────────────────────────────
 
   /**
-   * Return a Cloudflare Worker export that serves UI assets alongside MCP.
-   *
-   * Adds CORS headers to **every** response (the Construct desktop fetches
-   * cross-origin in dev mode) and rewrites `/ui/*` requests to `/*` so the
-   * local dev server matches the published URL structure.
-   *
-   * Use this instead of `export default app` when your app has a UI:
-   *
-   * @example
-   * ```ts
-   * const app = new ConstructApp({ name: 'my-app', version: '1.0.0' });
-   * // ... register tools ...
-   * export default app.withAssets();
-   * ```
-   *
-   * Pair with a `wrangler.toml` that has:
-   * ```toml
-   * [assets]
-   * directory = "./ui"
-   * binding = "ASSETS"
-   * not_found_handling = "none"
-   * run_worker_first = ["/*"]
-   * ```
+   * @deprecated Asset serving and CORS are now built into `fetch()` automatically.
+   * Just use `export default app;` — this method is kept for backwards compatibility.
    */
   withAssets(): { fetch: (request: Request, env: Record<string, unknown>) => Promise<Response> } {
-    return {
-      fetch: async (request: Request, env: Record<string, unknown>): Promise<Response> => {
-        // CORS preflight
-        if (request.method === 'OPTIONS') {
-          return new Response(null, { status: 204, headers: CORS_HEADERS });
-        }
-
-        const url = new URL(request.url);
-        let response: Response;
-
-        if (url.pathname === '/mcp' || url.pathname === '/health') {
-          response = await this.fetch(request);
-        } else if (env.ASSETS) {
-          const assets = env.ASSETS as { fetch: typeof fetch };
-          // Rewrite /ui/* → /* so dev matches the published URL structure
-          if (url.pathname.startsWith('/ui/') || url.pathname === '/ui') {
-            const rewritten = new URL(request.url);
-            rewritten.pathname = url.pathname === '/ui' ? '/' : url.pathname.slice(3);
-            response = await assets.fetch(new Request(rewritten, request));
-          } else {
-            response = await assets.fetch(request);
-          }
-        } else {
-          response = new Response('Not found', { status: 404 });
-        }
-
-        // Add CORS to every response so the desktop can fetch cross-origin
-        const headers = new Headers(response.headers);
-        for (const [k, v] of Object.entries(CORS_HEADERS)) headers.set(k, v);
-        return new Response(response.body, {
-          status: response.status,
-          statusText: response.statusText,
-          headers,
-        });
-      },
-    };
+    return { fetch: (request: Request, env: Record<string, unknown>) => this.fetch(request, env) };
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────
