@@ -340,5 +340,4 @@ See the full guide at [registry.construct.computer/publish](https://registry.con
 - [Construct Platform](https://construct.computer)
 - [App Store](https://registry.construct.computer)
 - [Publishing Guide](https://registry.construct.computer/publish)
-- [Sample App (Text Tools)](https://github.com/construct-computer/construct-app-sample)
-- [Scaffold a new app](https://www.npmjs.com/package/@construct-computer/create-construct-app)
+- [Sample App (Text Tools)](https://github.com/construct-computer/construct-app-sample) — template repo for new apps
