@@ -112,7 +112,7 @@ interface JsonRpcRequest {
 
 const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, HEAD, OPTIONS',
   'Access-Control-Allow-Headers':
     'Content-Type, x-construct-user, x-construct-auth, x-construct-env',
 };
@@ -176,6 +176,72 @@ export class ConstructApp {
       statusText: response.statusText,
       headers,
     });
+  }
+
+  // ── Asset-serving wrapper ────────────────────────────────────────────────
+
+  /**
+   * Return a Cloudflare Worker export that serves UI assets alongside MCP.
+   *
+   * Adds CORS headers to **every** response (the Construct desktop fetches
+   * cross-origin in dev mode) and rewrites `/ui/*` requests to `/*` so the
+   * local dev server matches the published URL structure.
+   *
+   * Use this instead of `export default app` when your app has a UI:
+   *
+   * @example
+   * ```ts
+   * const app = new ConstructApp({ name: 'my-app', version: '1.0.0' });
+   * // ... register tools ...
+   * export default app.withAssets();
+   * ```
+   *
+   * Pair with a `wrangler.toml` that has:
+   * ```toml
+   * [assets]
+   * directory = "./ui"
+   * binding = "ASSETS"
+   * not_found_handling = "none"
+   * run_worker_first = ["/*"]
+   * ```
+   */
+  withAssets(): { fetch: (request: Request, env: Record<string, unknown>) => Promise<Response> } {
+    return {
+      fetch: async (request: Request, env: Record<string, unknown>): Promise<Response> => {
+        // CORS preflight
+        if (request.method === 'OPTIONS') {
+          return new Response(null, { status: 204, headers: CORS_HEADERS });
+        }
+
+        const url = new URL(request.url);
+        let response: Response;
+
+        if (url.pathname === '/mcp' || url.pathname === '/health') {
+          response = await this.fetch(request);
+        } else if (env.ASSETS) {
+          const assets = env.ASSETS as { fetch: typeof fetch };
+          // Rewrite /ui/* → /* so dev matches the published URL structure
+          if (url.pathname.startsWith('/ui/') || url.pathname === '/ui') {
+            const rewritten = new URL(request.url);
+            rewritten.pathname = url.pathname === '/ui' ? '/' : url.pathname.slice(3);
+            response = await assets.fetch(new Request(rewritten, request));
+          } else {
+            response = await assets.fetch(request);
+          }
+        } else {
+          response = new Response('Not found', { status: 404 });
+        }
+
+        // Add CORS to every response so the desktop can fetch cross-origin
+        const headers = new Headers(response.headers);
+        for (const [k, v] of Object.entries(CORS_HEADERS)) headers.set(k, v);
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers,
+        });
+      },
+    };
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────
