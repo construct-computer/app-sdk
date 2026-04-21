@@ -120,18 +120,26 @@ interface JsonRpcRequest {
 //   "Permission was denied for this request to access the `loopback`
 //    address space."
 // Construct's desktop hosts dev apps on http://localhost:<port>, so the
-// SDK must advertise PNA opt-in on every response (sandboxed-iframe
-// script loads can produce `Origin: null`, which `*` already covers).
-const CORS_HEADERS: Record<string, string> = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, HEAD, OPTIONS',
-  'Access-Control-Allow-Headers':
-    'Content-Type, x-construct-user, x-construct-auth, x-construct-env',
-  'Access-Control-Allow-Private-Network': 'true',
-  // Max-age caches the preflight (incl. PNA opt-in) so scripts loaded
-  // from the same origin don't pay the OPTIONS round-trip each time.
-  'Access-Control-Max-Age': '86400',
-};
+// SDK must advertise PNA opt-in on every response. We echo the caller's
+// Origin rather than returning `*` — Chromium is strict about matching
+// `*` when the request Origin is `null` (sandboxed-iframe / blob-URL
+// contexts) and the request also triggers PNA; echoing the exact value
+// (including the literal string "null") is what reliably passes the
+// preflight in that combination.
+function makeCorsHeaders(request: Request): Record<string, string> {
+  const origin = request.headers.get('Origin');
+  return {
+    'Access-Control-Allow-Origin': origin ?? '*',
+    'Access-Control-Allow-Methods': 'GET, POST, HEAD, OPTIONS',
+    'Access-Control-Allow-Headers':
+      'Content-Type, x-construct-user, x-construct-auth, x-construct-env',
+    'Access-Control-Allow-Private-Network': 'true',
+    'Access-Control-Max-Age': '86400',
+    // Tell caches the response varies by Origin so an echoed `null`
+    // response doesn't leak into a request from a different origin.
+    'Vary': 'Origin',
+  };
+}
 
 export class ConstructApp {
   readonly name: string;
@@ -175,10 +183,11 @@ export class ConstructApp {
    */
   async fetch(request: Request, env?: Record<string, unknown>): Promise<Response> {
     const url = new URL(request.url);
+    const corsHeaders = makeCorsHeaders(request);
 
     // CORS preflight
     if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: CORS_HEADERS });
+      return new Response(null, { status: 204, headers: corsHeaders });
     }
 
     let response: Response;
@@ -218,7 +227,7 @@ export class ConstructApp {
     // Apply CORS headers to every response so the dev-mode connect check
     // and browser-originated requests can read /health and /mcp.
     const headers = new Headers(response.headers);
-    for (const [k, v] of Object.entries(CORS_HEADERS)) headers.set(k, v);
+    for (const [k, v] of Object.entries(corsHeaders)) headers.set(k, v);
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
