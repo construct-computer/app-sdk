@@ -1,9 +1,12 @@
 export {
   ConstructApp,
+  ConstructCallError,
   createApp,
   requireAuth,
   type ConstructAppOptions,
+  type ConstructBridge,
   type ContentBlock,
+  type ManagedToolCallResult,
   type ParameterSchema,
   type RequestContext,
   type ToolDefinition,

@@ -66,6 +66,51 @@ export interface RequestContext {
 
   /** Base64-encoded JSON of the app's environment variables from `x-construct-env`. */
   env: Record<string, string>;
+
+  /**
+   * Bridge into platform capabilities — managed tools and other apps.
+   * Always defined so apps can call `ctx.construct.tools.call(...)`
+   * without a null check. In local dev (no call token in the request)
+   * every method rejects with a `ConstructCallError('no_bridge', ...)`
+   * so you get a clear error rather than a silent nullref.
+   *
+   * Each method requires the corresponding capability to be declared in
+   * `manifest.json` under `permissions.uses`. Undeclared calls are
+   * rejected by the gateway with 403.
+   */
+  construct: ConstructBridge;
+}
+
+/** Error thrown when a `ctx.construct.*` call fails. */
+export class ConstructCallError extends Error {
+  readonly code: string;
+  readonly status: number;
+  constructor(code: string, message: string, status: number) {
+    super(message);
+    this.name = 'ConstructCallError';
+    this.code = code;
+    this.status = status;
+  }
+}
+
+/** Result of a managed tool call. */
+export interface ManagedToolCallResult {
+  /** Parsed JSON data returned by the tool, if any. */
+  data: unknown;
+  /** Stringified form, useful for LLM inputs. */
+  text: string;
+}
+
+/** Bridge exposed to apps as `ctx.construct`. */
+export interface ConstructBridge {
+  /** Call a managed platform tool (from the public catalog). */
+  tools: {
+    call(name: string, args?: Record<string, unknown>): Promise<ManagedToolCallResult>;
+  };
+  /** Call a tool on another Construct app. */
+  apps: {
+    call(appId: string, toolName: string, args?: Record<string, unknown>): Promise<ManagedToolCallResult>;
+  };
 }
 
 /** JSON Schema definition for a tool parameter. */
@@ -132,7 +177,7 @@ function makeCorsHeaders(request: Request): Record<string, string> {
     'Access-Control-Allow-Origin': origin ?? '*',
     'Access-Control-Allow-Methods': 'GET, POST, HEAD, OPTIONS',
     'Access-Control-Allow-Headers':
-      'Content-Type, x-construct-user, x-construct-auth, x-construct-env',
+      'Content-Type, x-construct-user, x-construct-auth, x-construct-env, x-construct-call-token, x-construct-gateway',
     'Access-Control-Allow-Private-Network': 'true',
     'Access-Control-Max-Age': '86400',
     // Tell caches the response varies by Origin so an echoed `null`
@@ -249,10 +294,11 @@ export class ConstructApp {
 
   /** Build per-request context from headers. */
   private extractContext(request: Request): RequestContext {
-    const ctx: RequestContext = { 
-      isAuthenticated: false, 
-      request, 
-      env: {} 
+    const ctx: RequestContext = {
+      isAuthenticated: false,
+      request,
+      env: {},
+      construct: STUB_BRIDGE,
     };
 
     const userId = request.headers.get('x-construct-user');
@@ -280,6 +326,15 @@ export class ConstructApp {
       } catch {
         /* invalid env header — leave env empty */
       }
+    }
+
+    // Upgrade from the stub to a real bridge when the platform has
+    // minted a call token for this request. In local dev the stub
+    // stays in place and every call throws a clean `no_bridge` error.
+    const callToken = request.headers.get('x-construct-call-token');
+    const gatewayUrl = request.headers.get('x-construct-gateway');
+    if (callToken && gatewayUrl) {
+      ctx.construct = buildBridge(gatewayUrl, callToken);
     }
 
     return ctx;
@@ -424,4 +479,92 @@ export function requireAuth(ctx: RequestContext): asserts ctx is RequestContext 
   if (!ctx.isAuthenticated || !ctx.auth) {
     throw new Error('Not authenticated. The user needs to connect their account first.');
   }
+}
+
+// ── Construct bridge ─────────────────────────────────────────────────────────
+
+/**
+ * Local-dev stub. Installed on `ctx.construct` whenever the Construct
+ * platform did not mint a call token for this request (e.g. you ran
+ * `wrangler dev` and hit `/mcp` with curl). Every call throws a clean
+ * `ConstructCallError('no_bridge', ...)` so the failure mode is obvious.
+ */
+const STUB_BRIDGE: ConstructBridge = {
+  tools: {
+    async call() {
+      throw new ConstructCallError(
+        'no_bridge',
+        'ctx.construct is unavailable — this request did not come through the Construct platform. Deploy the app or run it from the Construct desktop to enable platform tool calls.',
+        0,
+      );
+    },
+  },
+  apps: {
+    async call() {
+      throw new ConstructCallError(
+        'no_bridge',
+        'ctx.construct is unavailable — this request did not come through the Construct platform. Deploy the app or run it from the Construct desktop to enable cross-app calls.',
+        0,
+      );
+    },
+  },
+};
+
+function buildBridge(gatewayUrl: string, callToken: string): ConstructBridge {
+  async function dispatch(body: Record<string, unknown>): Promise<ManagedToolCallResult> {
+    let res: Response;
+    try {
+      res = await fetch(gatewayUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-construct-call-token': callToken,
+        },
+        body: JSON.stringify(body),
+      });
+    } catch (err) {
+      throw new ConstructCallError('network_error', `Gateway unreachable: ${err instanceof Error ? err.message : String(err)}`, 0);
+    }
+
+    const text = await res.text();
+    let parsed: { ok?: boolean; code?: string; message?: string; data?: unknown; text?: string };
+    try {
+      parsed = text ? JSON.parse(text) : {};
+    } catch {
+      throw new ConstructCallError('bad_response', `Gateway returned non-JSON response (${res.status}): ${text.slice(0, 200)}`, res.status);
+    }
+
+    if (!res.ok || parsed.ok === false) {
+      const code = parsed.code ?? `http_${res.status}`;
+      const message = parsed.message ?? `Gateway call failed (${res.status})`;
+      throw new ConstructCallError(code, message, res.status);
+    }
+
+    return {
+      data: parsed.data,
+      text: typeof parsed.text === 'string' ? parsed.text : JSON.stringify(parsed.data ?? null),
+    };
+  }
+
+  return {
+    tools: {
+      async call(name, args) {
+        if (!name || typeof name !== 'string') {
+          throw new ConstructCallError('bad_request', 'tools.call: name must be a non-empty string', 400);
+        }
+        return dispatch({ kind: 'tool', name, args: args ?? {} });
+      },
+    },
+    apps: {
+      async call(appId, toolName, args) {
+        if (!appId || typeof appId !== 'string') {
+          throw new ConstructCallError('bad_request', 'apps.call: appId must be a non-empty string', 400);
+        }
+        if (!toolName || typeof toolName !== 'string') {
+          throw new ConstructCallError('bad_request', 'apps.call: toolName must be a non-empty string', 400);
+        }
+        return dispatch({ kind: 'app', app_id: appId, tool: toolName, args: args ?? {} });
+      },
+    },
+  };
 }

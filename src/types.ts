@@ -145,6 +145,33 @@ export interface AppManifest {
     network?: string[];
     /** Max storage needed (e.g. "1MB"). */
     storage?: string;
+    /**
+     * Platform capabilities this app wants to use at runtime.
+     * Each capability must be declared here to be callable via `ctx.construct`.
+     * Undeclared calls are rejected by the gateway.
+     */
+    uses?: {
+      /**
+       * Managed platform tools the app may invoke through
+       * `ctx.construct.tools.call(name, args)`. Names come from the
+       * public tool catalog (e.g. "drive.list_files", "calendar.create_event").
+       */
+      tools?: string[];
+      /**
+       * Other Construct apps this app may call through
+       * `ctx.construct.apps.call(appId, toolName, args)`.
+       * Each entry whitelists specific tool names on that app.
+       */
+      apps?: Array<{
+        app_id: string;
+        tools: string[];
+      }>;
+      /**
+       * Whether the app may use platform inference via
+       * `ctx.construct.infer(...)` for light classification/summarization.
+       */
+      inference?: boolean;
+    };
   };
 
   /**
