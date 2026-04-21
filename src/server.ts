@@ -20,6 +20,8 @@
  * ```
  */
 
+import { CONSTRUCT_SDK_CSS, CONSTRUCT_SDK_JS } from './client-sdk.js';
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 /** A single content block in a tool result. */
@@ -110,11 +112,25 @@ interface JsonRpcRequest {
 
 // ── Implementation ───────────────────────────────────────────────────────────
 
+// Chromium's Private Network Access (PNA) blocks public pages (e.g.
+// https://staging.construct.computer) from loading subresources out of
+// the loopback/private address space unless the target server explicitly
+// opts in with `Access-Control-Allow-Private-Network: true` on the CORS
+// preflight. Without it, requests fail with:
+//   "Permission was denied for this request to access the `loopback`
+//    address space."
+// Construct's desktop hosts dev apps on http://localhost:<port>, so the
+// SDK must advertise PNA opt-in on every response (sandboxed-iframe
+// script loads can produce `Origin: null`, which `*` already covers).
 const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, HEAD, OPTIONS',
   'Access-Control-Allow-Headers':
     'Content-Type, x-construct-user, x-construct-auth, x-construct-env',
+  'Access-Control-Allow-Private-Network': 'true',
+  // Max-age caches the preflight (incl. PNA opt-in) so scripts loaded
+  // from the same origin don't pay the OPTIONS round-trip each time.
+  'Access-Control-Max-Age': '86400',
 };
 
 export class ConstructApp {
@@ -170,6 +186,20 @@ export class ConstructApp {
       response = await this.handleMcp(request);
     } else if (url.pathname === '/health') {
       response = new Response('ok');
+    } else if (url.pathname === '/sdk/construct.js') {
+      response = new Response(CONSTRUCT_SDK_JS, {
+        headers: {
+          'Content-Type': 'application/javascript; charset=utf-8',
+          'Cache-Control': 'public, max-age=3600',
+        },
+      });
+    } else if (url.pathname === '/sdk/construct.css') {
+      response = new Response(CONSTRUCT_SDK_CSS, {
+        headers: {
+          'Content-Type': 'text/css; charset=utf-8',
+          'Cache-Control': 'public, max-age=3600',
+        },
+      });
     } else if (env?.ASSETS) {
       // Serve static UI assets via the Cloudflare ASSETS binding
       const assets = env.ASSETS as { fetch: typeof fetch };

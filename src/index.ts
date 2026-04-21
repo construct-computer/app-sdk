@@ -22,3 +22,5 @@ export {
   type CredentialField,
   type LegacyOAuth2,
 } from './types.js';
+
+export { CONSTRUCT_SDK_CSS, CONSTRUCT_SDK_JS } from './client-sdk.js';
