@@ -1,6 +1,6 @@
 {
   "name": "@construct-computer/app-sdk",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "SDK for building Construct apps — MCP server helper, TypeScript types, and dev tools",
   "type": "module",
   "main": "dist/index.js",
@@ -10,20 +10,30 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./client-sdk": {
+      "types": "./dist/client-sdk.d.ts",
+      "import": "./dist/client-sdk.js"
+    },
     "./construct-global": {
       "types": "./src/construct-global.d.ts"
     },
+    "./assets/construct.js": "./assets/construct.js",
+    "./assets/construct.css": "./assets/construct.css",
     "./schemas/manifest.schema.json": "./schemas/manifest.schema.json"
   },
   "files": [
+    "assets",
     "dist",
     "schemas",
+    "scripts",
     "src"
   ],
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "prepublishOnly": "npm run build"
+    "build:client-sdk": "node scripts/build-client-sdk.mjs",
+    "check:client-sdk": "node scripts/build-client-sdk.mjs --check",
+    "build": "pnpm build:client-sdk && tsc",
+    "dev": "pnpm build:client-sdk && tsc --watch",
+    "prepublishOnly": "pnpm build"
   },
   "keywords": [
     "construct",

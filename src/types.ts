@@ -3,7 +3,7 @@
  *
  * These mirror the JSON Schema at
  * ./schemas/manifest.schema.json (canonical $schema URL for developers:
- * https://raw.githubusercontent.com/construct-computer/app-sdk/main/schemas/manifest.schema.json).
+ * https://registry.construct.computer/schemas/manifest.json).
  */
 
 /** Valid app category IDs. */
@@ -86,7 +86,7 @@ export interface LegacyOAuth2 {
 
 /** App manifest (manifest.json at the root of your app repo). */
 export interface AppManifest {
-  /** JSON Schema URL for IDE validation. Set to https://raw.githubusercontent.com/construct-computer/app-sdk/main/schemas/manifest.schema.json. */
+  /** JSON Schema URL for IDE validation. Set to https://registry.construct.computer/schemas/manifest.json. */
   $schema?: string;
 
   /** Display name shown in the App Store and Launchpad. */
