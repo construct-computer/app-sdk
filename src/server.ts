@@ -111,6 +111,8 @@ export interface ConstructBridge {
   apps: {
     call(appId: string, toolName: string, args?: Record<string, unknown>): Promise<ManagedToolCallResult>;
   };
+  /** Run light platform inference for summarization, classification, and extraction. */
+  infer(prompt: string, input?: unknown): Promise<ManagedToolCallResult>;
 }
 
 /** JSON Schema definition for a tool parameter. */
@@ -508,6 +510,13 @@ const STUB_BRIDGE: ConstructBridge = {
       );
     },
   },
+  async infer() {
+    throw new ConstructCallError(
+      'no_bridge',
+      'ctx.construct is unavailable — this request did not come through the Construct platform. Deploy the app or run it from the Construct desktop to enable inference.',
+      0,
+    );
+  },
 };
 
 function buildBridge(gatewayUrl: string, callToken: string): ConstructBridge {
@@ -565,6 +574,12 @@ function buildBridge(gatewayUrl: string, callToken: string): ConstructBridge {
         }
         return dispatch({ kind: 'app', app_id: appId, tool: toolName, args: args ?? {} });
       },
+    },
+    async infer(prompt, input) {
+      if (!prompt || typeof prompt !== 'string') {
+        throw new ConstructCallError('bad_request', 'infer: prompt must be a non-empty string', 400);
+      }
+      return dispatch({ kind: 'infer', prompt, input });
     },
   };
 }

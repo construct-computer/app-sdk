@@ -246,6 +246,8 @@ The Construct platform injects these globals into every app iframe:
 | `construct.state.onUpdate(callback)` | Subscribe to state changes (from agent or other tabs) |
 | `construct.agent.notify(message)` | Send a message to the AI agent |
 
+Server-side tool handlers can use `ctx.construct.infer(prompt, input)` when the app declares `"permissions": { "uses": { "inference": true } }`.
+
 CSS variables (`--c-bg`, `--c-surface`, `--c-text`, `--c-accent`, etc.) and utility classes are provided by `construct.css` for theme-aware styling.
 
 ### Authentication
