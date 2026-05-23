@@ -57,14 +57,17 @@ declare namespace construct {
   /**
    * Persistent state management.
    * State is a JSON object stored server-side that both the UI and the agent can read/write.
-   * When the agent calls `set_app_state`, your `onUpdate` callback fires automatically.
+   * When state changes, your `onUpdate` callback fires automatically.
    */
   namespace state {
     /** Read the current app state from the server. */
     function get<T = Record<string, unknown>>(): Promise<T>;
 
     /** Write new state to the server. Triggers `onUpdate` on all connected clients. */
-    function set(state: Record<string, unknown>): Promise<{ ok: boolean }>;
+    function set<T = Record<string, unknown>>(state: Record<string, unknown>): Promise<{ ok: boolean; state?: T }>;
+
+    /** Deep-merge a partial object into current state. Triggers `onUpdate`. */
+    function patch<T = Record<string, unknown>>(patch: Record<string, unknown>): Promise<{ ok: boolean; state: T }>;
 
     /**
      * Subscribe to state updates (from the agent or other tabs).
@@ -72,7 +75,7 @@ declare namespace construct {
      */
     function onUpdate<T = Record<string, unknown>>(
       callback: (state: T) => void,
-    ): void;
+    ): () => void;
   }
 
   /** Control the app window. */

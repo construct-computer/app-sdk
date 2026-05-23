@@ -243,6 +243,7 @@ The Construct platform injects these globals into every app iframe:
 | `construct.ui.close()` | Close the app window |
 | `construct.state.get()` | Read persistent app state |
 | `construct.state.set(state)` | Write persistent app state |
+| `construct.state.patch(patch)` | Deep-merge a partial object into persistent app state |
 | `construct.state.onUpdate(callback)` | Subscribe to state changes (from agent or other tabs) |
 | `construct.agent.notify(message)` | Send a message to the AI agent |
 
